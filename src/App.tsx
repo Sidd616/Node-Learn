@@ -7,28 +7,41 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   Node,
+  Edge,
+  Connection,
 } from 'reactflow';
 
 import 'reactflow/dist/style.css';
+
 import { FileUploader } from './pages/FileUploader';
 import { RegressionModel } from './pages/RegressionModel';
+import { DecisionTreeModel } from './pages/DecisionTreeModel';
+import { RandomForestModel } from './pages/RandomForestModel';
+import { SVMModel } from './pages/SVMModel';
+import { KNNModel } from './pages/KNNModel';
+import { KMeansModel } from './pages/KMeansModel';
 import { OutputCard } from './pages/OutputCard';
 
 const nodeTypes = {
   fileUploader: FileUploader,
   regression: RegressionModel,
-  output: OutputCard,
+  decisionTree: DecisionTreeModel,
+  randomForest: RandomForestModel,
+  svm: SVMModel,
+  knn: KNNModel,
+  kmeans: KMeansModel,
+  outputt: OutputCard,
 };
 
 const App: React.FC = () => {
   const [csvData, setCsvData] = useState<any[]>([]);
-  const [prediction, setPrediction] = useState<number | null>(null);
+  const [prediction, setPrediction] = useState<number | string | null>(null);
 
   const initialNodes: Node[] = [
     {
       id: '1',
       type: 'fileUploader',
-      position: { x: 0, y: 0 },
+      position: { x: -150, y: 300 },
       data: {
         onFileUpload: setCsvData,
       },
@@ -36,16 +49,43 @@ const App: React.FC = () => {
     {
       id: '2',
       type: 'regression',
-      position: { x: 350, y: 0 },
-      data: {
-        data: [],
-        onPredict: setPrediction,
-      },
+      position: { x: 300, y: 100 },
+      data: { data: [], onPredict: () => {} },
+    },
+    {
+      id: '4',
+      type: 'decisionTree',
+      position: { x: 300, y: 250 },
+      data: { data: [], onPredict: () => {} },
+    },
+    {
+      id: '5',
+      type: 'randomForest',
+      position: { x: 300, y: 400 },
+      data: { data: [], onPredict: () => {} },
+    },
+    {
+      id: '6',
+      type: 'svm',
+      position: { x: 300, y: 550 },
+      data: { data: [], onPredict: () => {} },
+    },
+    {
+      id: '7',
+      type: 'knn',
+      position: { x: 300, y: 700 },
+      data: { data: [], onPredict: () => {} },
+    },
+    {
+      id: '8',
+      type: 'kmeans',
+      position: { x: 300, y: 850 },
+      data: { data: [], onPredict: () => {} },
     },
     {
       id: '3',
-      type: 'output',
-      position: { x: 700, y: 0 },
+      type: 'outputt',
+      position: { x: 700, y: 300 },
       data: {
         result: null,
       },
@@ -56,15 +96,15 @@ const App: React.FC = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const onConnect = useCallback(
-    (params: any) => setEdges((eds) => addEdge(params, eds)),
+    (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
     []
   );
 
-  // 🔁 Update regression node when csvData changes
+  // 🔁 Update all models with the uploaded CSV
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) =>
-        node.id === '2'
+        ['regression', 'decisionTree', 'randomForest', 'svm', 'knn', 'kmeans'].includes(node.type ?? '')
           ? {
               ...node,
               data: {
@@ -77,7 +117,44 @@ const App: React.FC = () => {
     );
   }, [csvData, setNodes]);
 
-  // 🔁 Update output node when prediction changes
+  // 🔁 Detect model node that connects fileUploader -> model -> output
+  useEffect(() => {
+    const fileUploaderEdge = edges.find((e) => e.source === '1');
+    const outputEdge = edges.find((e) => e.target === '3');
+
+    if (!fileUploaderEdge || !outputEdge) return;
+
+    const modelNodeId = fileUploaderEdge.target;
+
+    if (modelNodeId && outputEdge.source === modelNodeId) {
+      const onPredict = (value: number | string) => {
+        setPrediction(value);
+      };
+
+      // Inject onPredict ONLY into the connected model node
+      setNodes((nds) =>
+        nds.map((node) =>
+          node.id === modelNodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  onPredict,
+                },
+              }
+            : {
+                ...node,
+                data: {
+                  ...node.data,
+                  onPredict: () => {}, // Disable others
+                },
+              }
+        )
+      );
+    }
+  }, [edges, setNodes]);
+
+  // 🔁 Update OutputCard with prediction result
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) =>
@@ -94,6 +171,34 @@ const App: React.FC = () => {
     );
   }, [prediction, setNodes]);
 
+  useEffect(() => {
+  const outputEdge = edges.find((e) => e.target === '3');
+  const activeId = outputEdge?.source;
+
+  setNodes((nds) =>
+    nds.map((node) => {
+      const isActive = node.id === activeId;
+      return {
+        ...node,
+        style: {
+          ...node.style,
+          backgroundColor: isActive ? '#DCFCE7' : '#FFFFFF', // green if active
+          border: isActive ? '2px solid #22C55E' : '1px solid #E5E7EB',
+        },
+      };
+    })
+  );
+}, [edges]);
+
+const onEdgeClick = useCallback(
+  (event: React.MouseEvent, edge: Edge) => {
+    event.stopPropagation(); // Prevent triggering other click events
+    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+  },
+  [setEdges]
+);
+
+
   return (
     <div className="w-screen h-screen">
       <ReactFlowProvider>
@@ -102,6 +207,7 @@ const App: React.FC = () => {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onEdgeClick={onEdgeClick}
           onConnect={onConnect}
           nodeTypes={nodeTypes}
           fitView

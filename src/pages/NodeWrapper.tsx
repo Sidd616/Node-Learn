@@ -1,7 +1,11 @@
+import { Handle, Position } from 'reactflow';
+
 const NodeWrapper = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="bg-gray-800 text-black rounded shadow-lg border border-gray-700 w-fit mx-auto my-4">
-    <div className="bg-blue-600 px-4 py-2 rounded-t font-semibold">{title}</div>
-    <div className="p-4 space-y-4">{children}</div>
+  <div className="relative bg-white rounded shadow border p-2 w-[250px]">
+    <Handle type="target" position={Position.Left} className="w-2 h-2 bg-blue-500" />
+    <Handle type="source" position={Position.Right} className="w-2 h-2 bg-green-500" />
+    <div className="font-bold text-sm mb-2">{title}</div>
+    {children}
   </div>
 );
 
