@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import NodeWrapper from './NodeWrapper';
-import { NodeProps } from 'reactflow';
+import React, { useState, useEffect } from "react";
+import NodeWrapper from "./NodeWrapper";
+import { NodeProps } from "reactflow";
 
 interface RegressionModelData {
   data: any[];
   onPredict: (value: number) => void;
 }
 
-export const RegressionModel: React.FC<NodeProps<RegressionModelData>> = ({ data }) => {
+export const RegressionModel: React.FC<NodeProps<RegressionModelData>> = ({
+  data,
+}) => {
   const [headers, setHeaders] = useState<string[]>([]);
-  const [xKey, setXKey] = useState('');
-  const [yKey, setYKey] = useState('');
-  const [inputX, setInputX] = useState('');
+  const [xKey, setXKey] = useState("");
+  const [yKey, setYKey] = useState("");
+  const [inputX, setInputX] = useState("");
 
   useEffect(() => {
     if (data.data.length > 0) {
@@ -23,18 +25,25 @@ export const RegressionModel: React.FC<NodeProps<RegressionModelData>> = ({ data
     const rawData = data.data;
     if (!xKey || !yKey || rawData.length === 0) return;
 
-    const xVals = rawData.map((d) => parseFloat(d[xKey])).filter((val) => !isNaN(val));
-    const yVals = rawData.map((d) => parseFloat(d[yKey])).filter((val) => !isNaN(val));
+    const xVals = rawData
+      .map((d) => parseFloat(d[xKey]))
+      .filter((val) => !isNaN(val));
+    const yVals = rawData
+      .map((d) => parseFloat(d[yKey]))
+      .filter((val) => !isNaN(val));
 
     if (xVals.length !== yVals.length || xVals.length === 0) {
-      alert('Invalid or mismatched data');
+      alert("Invalid or mismatched data");
       return;
     }
 
     const meanX = xVals.reduce((a, b) => a + b, 0) / xVals.length;
     const meanY = yVals.reduce((a, b) => a + b, 0) / yVals.length;
 
-    const numerator = xVals.reduce((sum, x, i) => sum + (x - meanX) * (yVals[i] - meanY), 0);
+    const numerator = xVals.reduce(
+      (sum, x, i) => sum + (x - meanX) * (yVals[i] - meanY),
+      0
+    );
     const denominator = xVals.reduce((sum, x) => sum + (x - meanX) ** 2, 0);
 
     const slope = numerator / denominator;

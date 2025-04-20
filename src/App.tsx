@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from "react";
 import ReactFlow, {
   ReactFlowProvider,
   Background,
@@ -9,18 +9,18 @@ import ReactFlow, {
   Node,
   Edge,
   Connection,
-} from 'reactflow';
+} from "reactflow";
 
-import 'reactflow/dist/style.css';
+import "reactflow/dist/style.css";
 
-import { FileUploader } from './pages/FileUploader';
-import { RegressionModel } from './pages/RegressionModel';
-import { DecisionTreeModel } from './pages/DecisionTreeModel';
-import { RandomForestModel } from './pages/RandomForestModel';
-import { SVMModel } from './pages/SVMModel';
-import { KNNModel } from './pages/KNNModel';
-import { KMeansModel } from './pages/KMeansModel';
-import { OutputCard } from './pages/OutputCard';
+import { FileUploader } from "./pages/FileUploader";
+import { RegressionModel } from "./pages/RegressionModel";
+import { DecisionTreeModel } from "./pages/DecisionTreeModel";
+import { RandomForestModel } from "./pages/RandomForestModel";
+import { SVMModel } from "./pages/SVMModel";
+import { KNNModel } from "./pages/KNNModel";
+import { KMeansModel } from "./pages/KMeansModel";
+import { OutputCard } from "./pages/OutputCard";
 
 const nodeTypes = {
   fileUploader: FileUploader,
@@ -39,52 +39,52 @@ const App: React.FC = () => {
 
   const initialNodes: Node[] = [
     {
-      id: '1',
-      type: 'fileUploader',
+      id: "1",
+      type: "fileUploader",
       position: { x: -150, y: 300 },
       data: {
         onFileUpload: setCsvData,
       },
     },
     {
-      id: '2',
-      type: 'regression',
+      id: "2",
+      type: "regression",
       position: { x: 300, y: 100 },
       data: { data: [], onPredict: () => {} },
     },
     {
-      id: '4',
-      type: 'decisionTree',
+      id: "4",
+      type: "decisionTree",
       position: { x: 300, y: 250 },
       data: { data: [], onPredict: () => {} },
     },
     {
-      id: '5',
-      type: 'randomForest',
+      id: "5",
+      type: "randomForest",
       position: { x: 300, y: 400 },
       data: { data: [], onPredict: () => {} },
     },
     {
-      id: '6',
-      type: 'svm',
+      id: "6",
+      type: "svm",
       position: { x: 300, y: 550 },
       data: { data: [], onPredict: () => {} },
     },
     {
-      id: '7',
-      type: 'knn',
+      id: "7",
+      type: "knn",
       position: { x: 300, y: 700 },
       data: { data: [], onPredict: () => {} },
     },
     {
-      id: '8',
-      type: 'kmeans',
+      id: "8",
+      type: "kmeans",
       position: { x: 300, y: 850 },
       data: { data: [], onPredict: () => {} },
     },
     {
-      id: '3',
-      type: 'outputt',
+      id: "3",
+      type: "outputt",
       position: { x: 700, y: 300 },
       data: {
         result: null,
@@ -104,7 +104,14 @@ const App: React.FC = () => {
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) =>
-        ['regression', 'decisionTree', 'randomForest', 'svm', 'knn', 'kmeans'].includes(node.type ?? '')
+        [
+          "regression",
+          "decisionTree",
+          "randomForest",
+          "svm",
+          "knn",
+          "kmeans",
+        ].includes(node.type ?? "")
           ? {
               ...node,
               data: {
@@ -119,8 +126,8 @@ const App: React.FC = () => {
 
   // 🔁 Detect model node that connects fileUploader -> model -> output
   useEffect(() => {
-    const fileUploaderEdge = edges.find((e) => e.source === '1');
-    const outputEdge = edges.find((e) => e.target === '3');
+    const fileUploaderEdge = edges.find((e) => e.source === "1");
+    const outputEdge = edges.find((e) => e.target === "3");
 
     if (!fileUploaderEdge || !outputEdge) return;
 
@@ -158,7 +165,7 @@ const App: React.FC = () => {
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) =>
-        node.id === '3'
+        node.id === "3"
           ? {
               ...node,
               data: {
@@ -172,32 +179,31 @@ const App: React.FC = () => {
   }, [prediction, setNodes]);
 
   useEffect(() => {
-  const outputEdge = edges.find((e) => e.target === '3');
-  const activeId = outputEdge?.source;
+    const outputEdge = edges.find((e) => e.target === "3");
+    const activeId = outputEdge?.source;
 
-  setNodes((nds) =>
-    nds.map((node) => {
-      const isActive = node.id === activeId;
-      return {
-        ...node,
-        style: {
-          ...node.style,
-          backgroundColor: isActive ? '#DCFCE7' : '#FFFFFF', // green if active
-          border: isActive ? '2px solid #22C55E' : '1px solid #E5E7EB',
-        },
-      };
-    })
+    setNodes((nds) =>
+      nds.map((node) => {
+        const isActive = node.id === activeId;
+        return {
+          ...node,
+          style: {
+            ...node.style,
+            backgroundColor: isActive ? "#DCFCE7" : "#FFFFFF", // green if active
+            border: isActive ? "2px solid #22C55E" : "1px solid #E5E7EB",
+          },
+        };
+      })
+    );
+  }, [edges]);
+
+  const onEdgeClick = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      event.stopPropagation(); // Prevent triggering other click events
+      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    },
+    [setEdges]
   );
-}, [edges]);
-
-const onEdgeClick = useCallback(
-  (event: React.MouseEvent, edge: Edge) => {
-    event.stopPropagation(); // Prevent triggering other click events
-    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-  },
-  [setEdges]
-);
-
 
   return (
     <div className="w-screen h-screen">
