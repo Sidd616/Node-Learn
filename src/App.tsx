@@ -36,71 +36,39 @@ const nodeTypes = {
 const App: React.FC = () => {
   const [csvData, setCsvData] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<number | string | null>(null);
+  const [contextNodeId, setContextNodeId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    visible: boolean;
+  }>({
+    x: 0,
+    y: 0,
+    visible: false,
+  });
 
   const initialNodes: Node[] = [
     {
       id: "1",
       type: "fileUploader",
       position: { x: -150, y: 300 },
-      data: {
-        onFileUpload: setCsvData,
-      },
-    },
-    {
-      id: "2",
-      type: "regression",
-      position: { x: 300, y: 100 },
-      data: { data: [], onPredict: () => {} },
-    },
-    {
-      id: "4",
-      type: "decisionTree",
-      position: { x: 300, y: 250 },
-      data: { data: [], onPredict: () => {} },
-    },
-    {
-      id: "5",
-      type: "randomForest",
-      position: { x: 300, y: 400 },
-      data: { data: [], onPredict: () => {} },
-    },
-    {
-      id: "6",
-      type: "svm",
-      position: { x: 300, y: 550 },
-      data: { data: [], onPredict: () => {} },
-    },
-    {
-      id: "7",
-      type: "knn",
-      position: { x: 300, y: 700 },
-      data: { data: [], onPredict: () => {} },
-    },
-    {
-      id: "8",
-      type: "kmeans",
-      position: { x: 300, y: 850 },
-      data: { data: [], onPredict: () => {} },
+      data: { onFileUpload: setCsvData },
     },
     {
       id: "3",
       type: "outputt",
       position: { x: 700, y: 300 },
-      data: {
-        result: null,
-      },
+      data: { result: null },
     },
   ];
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  const onConnect = useCallback(
-    (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
-    []
-  );
+  const onConnect = useCallback((params: Edge | Connection) => {
+    setEdges((eds) => addEdge(params, eds));
+  }, []);
 
-  // 🔁 Update all models with the uploaded CSV
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) =>
@@ -114,17 +82,13 @@ const App: React.FC = () => {
         ].includes(node.type ?? "")
           ? {
               ...node,
-              data: {
-                ...node.data,
-                data: csvData,
-              },
+              data: { ...node.data, data: csvData },
             }
           : node
       )
     );
   }, [csvData, setNodes]);
 
-  // 🔁 Detect model node that connects fileUploader -> model -> output
   useEffect(() => {
     const fileUploaderEdge = edges.find((e) => e.source === "1");
     const outputEdge = edges.find((e) => e.target === "3");
@@ -134,44 +98,31 @@ const App: React.FC = () => {
     const modelNodeId = fileUploaderEdge.target;
 
     if (modelNodeId && outputEdge.source === modelNodeId) {
-      const onPredict = (value: number | string) => {
-        setPrediction(value);
-      };
+      const onPredict = (value: number | string) => setPrediction(value);
 
-      // Inject onPredict ONLY into the connected model node
       setNodes((nds) =>
         nds.map((node) =>
           node.id === modelNodeId
             ? {
                 ...node,
-                data: {
-                  ...node.data,
-                  onPredict,
-                },
+                data: { ...node.data, onPredict },
               }
             : {
                 ...node,
-                data: {
-                  ...node.data,
-                  onPredict: () => {}, // Disable others
-                },
+                data: { ...node.data, onPredict: () => {} },
               }
         )
       );
     }
   }, [edges, setNodes]);
 
-  // 🔁 Update OutputCard with prediction result
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) =>
         node.id === "3"
           ? {
               ...node,
-              data: {
-                ...node.data,
-                result: prediction,
-              },
+              data: { ...node.data, result: prediction },
             }
           : node
       )
@@ -189,7 +140,7 @@ const App: React.FC = () => {
           ...node,
           style: {
             ...node.style,
-            backgroundColor: isActive ? "#DCFCE7" : "#FFFFFF", // green if active
+            backgroundColor: isActive ? "#DCFCE7" : "#FFFFFF",
             border: isActive ? "2px solid #22C55E" : "1px solid #E5E7EB",
           },
         };
@@ -199,14 +150,88 @@ const App: React.FC = () => {
 
   const onEdgeClick = useCallback(
     (event: React.MouseEvent, edge: Edge) => {
-      event.stopPropagation(); // Prevent triggering other click events
+      event.stopPropagation();
       setEdges((eds) => eds.filter((e) => e.id !== edge.id));
     },
     [setEdges]
   );
 
+  const [nextNodeId, setNextNodeId] = useState(9);
+  const [selectedNodeType, setSelectedNodeType] = useState("regression");
+
+  const availableNodeTypes = [
+    { label: "File Uploader", value: "fileUploader" },
+    { label: "Regression", value: "regression" },
+    { label: "Decision Tree", value: "decisionTree" },
+    { label: "Random Forest", value: "randomForest" },
+    { label: "SVM", value: "svm" },
+    { label: "KNN", value: "knn" },
+    { label: "KMeans", value: "kmeans" },
+    { label: "Output", value: "outputt" },
+  ];
+
+  const handleAddCard = () => {
+    const id = nextNodeId.toString();
+    const position = {
+      x: Math.random() * 400 + 100,
+      y: Math.random() * 600 + 100,
+    };
+
+    let data: any = {};
+
+    if (selectedNodeType === "fileUploader") {
+      data = { onFileUpload: setCsvData };
+    } else if (selectedNodeType === "outputt") {
+      data = { result: null };
+    } else {
+      data = {
+        data: csvData,
+        onPredict: () => {},
+      };
+    }
+
+    const newNode: Node = {
+      id,
+      type: selectedNodeType,
+      position,
+      data,
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    setNextNodeId((id) => id + 1);
+  };
+
+  const handleNodeContextMenu = (event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    setContextNodeId(node.id);
+    setContextMenu({ x: event.clientX, y: event.clientY, visible: true });
+  };
+
+  const deleteNode = () => {
+    if (contextNodeId) {
+      setNodes((nds) => nds.filter((n) => n.id !== contextNodeId));
+      setEdges((eds) =>
+        eds.filter(
+          (e) => e.source !== contextNodeId && e.target !== contextNodeId
+        )
+      );
+    }
+    setContextMenu({ ...contextMenu, visible: false });
+  };
+
+  const handleClickOutside = () => {
+    if (contextMenu.visible) {
+      setContextMenu({ ...contextMenu, visible: false });
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [contextMenu]);
+
   return (
-    <div className="w-screen h-screen">
+    <div className="w-screen h-screen relative">
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}
@@ -217,9 +242,39 @@ const App: React.FC = () => {
           onConnect={onConnect}
           nodeTypes={nodeTypes}
           fitView
+          onNodeContextMenu={handleNodeContextMenu}
         >
           <Background />
           <Controls />
+          <div className="fixed bottom-4 right-4 z-50 flex gap-2 bg-white p-3 rounded-2xl shadow-lg">
+            <select
+              value={selectedNodeType}
+              onChange={(e) => setSelectedNodeType(e.target.value)}
+              className="border px-2 py-1 rounded"
+            >
+              {availableNodeTypes.map((node) => (
+                <option key={node.value} value={node.value}>
+                  {node.label}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleAddCard}
+              className="bg-green-500 text-white px-4 py-1 rounded hover:bg-green-600"
+            >
+              + Add Card
+            </button>
+          </div>
+
+          {contextMenu.visible && (
+            <div
+              className="absolute z-50 bg-white shadow-md border rounded p-2 text-sm cursor-pointer"
+              style={{ top: contextMenu.y, left: contextMenu.x }}
+              onClick={deleteNode}
+            >
+              🗑 Delete Node
+            </div>
+          )}
         </ReactFlow>
       </ReactFlowProvider>
     </div>

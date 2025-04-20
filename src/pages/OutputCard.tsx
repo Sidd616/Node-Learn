@@ -13,7 +13,7 @@ export const OutputCard: React.FC<NodeProps<OutputCardData>> = ({ data }) => {
       <div className="p-4 border rounded shadow bg-white">
         <h2 className="text-lg font-semibold mb-2">Prediction Output</h2>
 
-        {data.result !== null ? (
+        {data.result !== null ? (       
           <p className="text-xl font-bold text-green-600">
             Result: {data.result}
           </p>
