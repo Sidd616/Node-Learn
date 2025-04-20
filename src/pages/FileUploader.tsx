@@ -1,13 +1,15 @@
-import React from 'react';
-import NodeWrapper from './NodeWrapper';
-import { Handle, Position } from 'reactflow';
-import { NodeProps } from 'reactflow';
+import React from "react";
+import NodeWrapper from "./NodeWrapper";
+import { Handle, Position } from "reactflow";
+import { NodeProps } from "reactflow";
 
 type FileUploaderProps = {
   onFileUpload: (data: any[]) => void;
 };
 
-export const FileUploader: React.FC<NodeProps<FileUploaderProps>> = ({ data }) => {
+export const FileUploader: React.FC<NodeProps<FileUploaderProps>> = ({
+  data,
+}) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -15,7 +17,7 @@ export const FileUploader: React.FC<NodeProps<FileUploaderProps>> = ({ data }) =
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const rows = text.split('\n').map((row) => row.split(','));
+      const rows = text.split("\n").map((row) => row.split(","));
       const headers = rows.shift();
       const jsonData = rows.map((row) =>
         Object.fromEntries(row.map((val, i) => [headers?.[i], val]))

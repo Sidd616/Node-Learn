@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import NodeWrapper from './NodeWrapper';
-import { NodeProps } from 'reactflow';
+import React, { useState, useEffect } from "react";
+import NodeWrapper from "./NodeWrapper";
+import { NodeProps } from "reactflow";
 
 interface KMeansModelData {
   data: any[];
@@ -9,8 +9,8 @@ interface KMeansModelData {
 
 export const KMeansModel: React.FC<NodeProps<KMeansModelData>> = ({ data }) => {
   const [headers, setHeaders] = useState<string[]>([]);
-  const [featureKey, setFeatureKey] = useState('');
-  const [inputValue, setInputValue] = useState('');
+  const [featureKey, setFeatureKey] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [k, setK] = useState(3);
   const [centroids, setCentroids] = useState<number[]>([]);
 
@@ -26,8 +26,13 @@ export const KMeansModel: React.FC<NodeProps<KMeansModelData>> = ({ data }) => {
 
     for (let iter = 0; iter < 10; iter++) {
       assignments = points.map((p) =>
-        centroids.reduce((closestIdx, c, i) =>
-          Math.abs(p - c) < Math.abs(p - centroids[closestIdx]) ? i : closestIdx, 0)
+        centroids.reduce(
+          (closestIdx, c, i) =>
+            Math.abs(p - c) < Math.abs(p - centroids[closestIdx])
+              ? i
+              : closestIdx,
+          0
+        )
       );
 
       const newCentroids = Array(k).fill(0);
@@ -39,7 +44,9 @@ export const KMeansModel: React.FC<NodeProps<KMeansModelData>> = ({ data }) => {
         counts[cluster] += 1;
       });
 
-      centroids = newCentroids.map((sum, i) => (counts[i] ? sum / counts[i] : centroids[i]));
+      centroids = newCentroids.map((sum, i) =>
+        counts[i] ? sum / counts[i] : centroids[i]
+      );
     }
 
     return centroids;
@@ -48,12 +55,19 @@ export const KMeansModel: React.FC<NodeProps<KMeansModelData>> = ({ data }) => {
   const handlePredict = () => {
     if (!featureKey || !inputValue || isNaN(parseFloat(inputValue))) return;
 
-    const points = data.data.map((d) => parseFloat(d[featureKey])).filter((v) => !isNaN(v));
+    const points = data.data
+      .map((d) => parseFloat(d[featureKey]))
+      .filter((v) => !isNaN(v));
     const centroids = runKMeans(points, k);
     const input = parseFloat(inputValue);
 
-    const nearest = centroids.reduce((closestIdx, c, i) =>
-      Math.abs(input - c) < Math.abs(input - centroids[closestIdx]) ? i : closestIdx, 0);
+    const nearest = centroids.reduce(
+      (closestIdx, c, i) =>
+        Math.abs(input - c) < Math.abs(input - centroids[closestIdx])
+          ? i
+          : closestIdx,
+      0
+    );
 
     setCentroids(centroids);
     data.onPredict(`Cluster ${nearest + 1}`);
@@ -66,25 +80,49 @@ export const KMeansModel: React.FC<NodeProps<KMeansModelData>> = ({ data }) => {
 
         <div className="mb-3">
           <label className="block font-medium mb-1">Select Feature:</label>
-          <select className="border p-2 rounded w-full" value={featureKey} onChange={(e) => setFeatureKey(e.target.value)}>
+          <select
+            className="border p-2 rounded w-full"
+            value={featureKey}
+            onChange={(e) => setFeatureKey(e.target.value)}
+          >
             <option value="">-- Choose --</option>
             {headers.map((header) => (
-              <option key={header} value={header}>{header}</option>
+              <option key={header} value={header}>
+                {header}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="mb-3">
-          <label className="block font-medium mb-1">Enter value to cluster:</label>
-          <input type="number" className="border p-2 rounded w-full" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+          <label className="block font-medium mb-1">
+            Enter value to cluster:
+          </label>
+          <input
+            type="number"
+            className="border p-2 rounded w-full"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+          />
         </div>
 
         <div className="mb-4">
-          <label className="block font-medium mb-1">K (number of clusters):</label>
-          <input type="number" className="border p-2 rounded w-full" value={k} onChange={(e) => setK(parseInt(e.target.value))} min={1} />
+          <label className="block font-medium mb-1">
+            K (number of clusters):
+          </label>
+          <input
+            type="number"
+            className="border p-2 rounded w-full"
+            value={k}
+            onChange={(e) => setK(parseInt(e.target.value))}
+            min={1}
+          />
         </div>
 
-        <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded" onClick={handlePredict}>
+        <button
+          className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded"
+          onClick={handlePredict}
+        >
           Predict Cluster
         </button>
       </div>
