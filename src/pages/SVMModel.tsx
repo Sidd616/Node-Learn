@@ -32,7 +32,7 @@ export const SVMModel: React.FC<NodeProps<SVMModelData>> = ({ data }) => {
 
   return (
     <NodeWrapper title="🧍 SVM Classifier">
-      <div className="p-4 border rounded shadow bg-green-50">
+      <div className="p-4 border rounded shadow bg-white">
         <h2 className="text-lg font-semibold mb-4">Support Vector Machine</h2>
 
         <div className="mb-3">

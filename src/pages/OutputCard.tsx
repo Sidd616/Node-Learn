@@ -4,7 +4,7 @@ import NodeWrapper from "./NodeWrapper";
 import { NodeProps } from "reactflow";
 
 interface OutputCardData {
-  result: number | null;
+  result: number | string | null;
 }
 
 export const OutputCard: React.FC<NodeProps<OutputCardData>> = ({ data }) => {
@@ -13,12 +13,12 @@ export const OutputCard: React.FC<NodeProps<OutputCardData>> = ({ data }) => {
       <div className="p-4 border rounded shadow bg-white">
         <h2 className="text-lg font-semibold mb-2">Prediction Output</h2>
 
-        {data.result !== null ? (       
+        {data.result !== null ? (
           <p className="text-xl font-bold text-green-600">
             Result: {data.result}
           </p>
         ) : (
-          <p className="text-gray-500">No prediction yet.</p>
+          <p className="text-gray-500">Waiting for input...</p>
         )}
       </div>
     </NodeWrapper>

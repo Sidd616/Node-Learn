@@ -69,84 +69,112 @@ const App: React.FC = () => {
     setEdges((eds) => addEdge(params, eds));
   }, []);
 
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) =>
-        [
-          "regression",
-          "decisionTree",
-          "randomForest",
-          "svm",
-          "knn",
-          "kmeans",
-        ].includes(node.type ?? "")
-          ? {
-              ...node,
-              data: { ...node.data, data: csvData },
-            }
-          : node
-      )
+  // Update the getConnectedPairs function to handle all output nodes
+  const getConnectedPairs = (edges: Edge[]) => {
+    const modelOutputPairs: { modelId: string; outputId: string }[] = [];
+    const outputNodes = edges.filter(e =>
+      e.target.startsWith("3") ||
+      (e.target.length > 0 && nodes.find(n => n.id === e.target)?.type === "outputt")
     );
-  }, [csvData, setNodes]);
 
+    outputNodes.forEach(outputEdge => {
+      const modelId = outputEdge.source;
+      const outputId = outputEdge.target;
+      if (modelId && outputId) {
+        modelOutputPairs.push({ modelId, outputId });
+      }
+    });
+
+    return modelOutputPairs;
+  };
+
+  // Update the prediction handling effect
   useEffect(() => {
-    const fileUploaderEdge = edges.find((e) => e.source === "1");
-    const outputEdge = edges.find((e) => e.target === "3");
-
-    if (!fileUploaderEdge || !outputEdge) return;
-
-    const modelNodeId = fileUploaderEdge.target;
-
-    if (modelNodeId && outputEdge.source === modelNodeId) {
-      const onPredict = (value: number | string) => setPrediction(value);
-
-      setNodes((nds) =>
-        nds.map((node) =>
-          node.id === modelNodeId
-            ? {
-                ...node,
-                data: { ...node.data, onPredict },
-              }
-            : {
-                ...node,
-                data: { ...node.data, onPredict: () => {} },
-              }
-        )
-      );
-    }
-  }, [edges, setNodes]);
-
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) =>
-        node.id === "3"
-          ? {
-              ...node,
-              data: { ...node.data, result: prediction },
-            }
-          : node
-      )
-    );
-  }, [prediction, setNodes]);
-
-  useEffect(() => {
-    const outputEdge = edges.find((e) => e.target === "3");
-    const activeId = outputEdge?.source;
+    const connectedPairs = getConnectedPairs(edges);
 
     setNodes((nds) =>
       nds.map((node) => {
-        const isActive = node.id === activeId;
-        return {
-          ...node,
-          style: {
-            ...node.style,
-            backgroundColor: isActive ? "#DCFCE7" : "#FFFFFF",
-            border: isActive ? "2px solid #22C55E" : "1px solid #E5E7EB",
-          },
-        };
+        const isModelNode = ["regression", "decisionTree", "randomForest", "svm", "knn", "kmeans"].includes(node.type ?? "");
+        const connectedOutputs = connectedPairs
+          .filter(pair => pair.modelId === node.id)
+          .map(pair => pair.outputId);
+
+        if (isModelNode) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              onPredict: (value: number | string) => {
+                // Update all connected output nodes
+                setNodes(currentNodes =>
+                  currentNodes.map(n => {
+                    if (connectedOutputs.includes(n.id)) {
+                      return {
+                        ...n,
+                        data: { ...n.data, result: value }
+                      };
+                    }
+                    return n;
+                  })
+                );
+              }
+            }
+          };
+        }
+
+        return node;
       })
     );
-  }, [edges]);
+  }, [edges, setNodes]);
+
+  useEffect(() => {
+    const connectedNodeIds = edges
+      .filter((edge) => edge.source === "1")
+      .map((edge) => edge.target);
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        const isModelNode = ["regression", "decisionTree", "randomForest", "svm", "knn", "kmeans"].includes(node.type ?? "");
+        const isConnectedToFileUploader = connectedNodeIds.includes(node.id);
+
+        if (isModelNode && isConnectedToFileUploader) {
+          // Preserve existing connections and handlers
+          const existingPredictHandler = node.data.onPredict;
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              data: csvData,
+              onPredict: existingPredictHandler
+            }
+          };
+        }
+        return node;
+      })
+    );
+  }, [csvData, edges, setNodes]);
+
+  useEffect(() => {
+    const connectedPairs = getConnectedPairs(edges);
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.type === "outputt") {
+          const isConnected = connectedPairs.some(pair => pair.outputId === node.id);
+          if (!isConnected) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                result: null
+              }
+            };
+          }
+        }
+        return node;
+      })
+    );
+  }, [edges, setNodes]);
 
   const onEdgeClick = useCallback(
     (event: React.MouseEvent, edge: Edge) => {
@@ -182,11 +210,14 @@ const App: React.FC = () => {
     if (selectedNodeType === "fileUploader") {
       data = { onFileUpload: setCsvData };
     } else if (selectedNodeType === "outputt") {
-      data = { result: null };
-    } else {
       data = {
-        data: csvData,
-        onPredict: () => {},
+        result: null  // Always start with null for new output cards
+      };
+    } else {
+      // For model nodes
+      data = {
+        data: [], // Initialize with empty data
+        onPredict: () => {}, // Initialize with empty handler
       };
     }
 
@@ -195,6 +226,10 @@ const App: React.FC = () => {
       type: selectedNodeType,
       position,
       data,
+      style: {
+        backgroundColor: "#FFFFFF",
+        border: "1px solid #E5E7EB"
+      }
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -209,11 +244,37 @@ const App: React.FC = () => {
 
   const deleteNode = () => {
     if (contextNodeId) {
-      setNodes((nds) => nds.filter((n) => n.id !== contextNodeId));
+      const connectedPairs = getConnectedPairs(edges);
+      const affectedOutputs = connectedPairs
+        .filter(pair => pair.modelId === contextNodeId)
+        .map(pair => pair.outputId);
+
+      // Remove all connected edges
       setEdges((eds) =>
         eds.filter(
           (e) => e.source !== contextNodeId && e.target !== contextNodeId
         )
+      );
+
+      // Remove the node
+      setNodes((nds) =>
+        nds.filter((n) => n.id !== contextNodeId)
+      );
+
+      // Reset only affected output nodes
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (affectedOutputs.includes(n.id)) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                result: null
+              }
+            };
+          }
+          return n;
+        })
       );
     }
     setContextMenu({ ...contextMenu, visible: false });
