@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import NodeWrapper from "./NodeWrapper";
 import { NodeProps } from "reactflow";
+import { KNNVisualization } from '../components/ModelVisualizations';
 
 interface KNNModelData {
   data: any[];
@@ -13,6 +14,7 @@ export const KNNModel: React.FC<NodeProps<KNNModelData>> = ({ data }) => {
   const [labelKey, setLabelKey] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [k, setK] = useState(3);
+  const [prediction, setPrediction] = useState("");
 
   useEffect(() => {
     if (data.data.length > 0) {
@@ -22,27 +24,53 @@ export const KNNModel: React.FC<NodeProps<KNNModelData>> = ({ data }) => {
 
   const handlePredict = () => {
     const parsedInput = parseFloat(inputValue);
-    if (!featureKey || !labelKey || isNaN(parsedInput)) return;
+    if (!featureKey || !labelKey || isNaN(parsedInput)) {
+      alert("Please fill in all fields with valid values");
+      return;
+    }
 
+    if (k <= 0 || k > data.data.length) {
+      alert(`K must be between 1 and ${data.data.length}`);
+      return;
+    }
+
+    // Calculate distances and store original indices
     const distances = data.data
-      .map((d) => ({
+      .map((d, index) => ({
         distance: Math.abs(parseFloat(d[featureKey]) - parsedInput),
         label: d[labelKey],
+        index: index
       }))
-      .filter((d) => !isNaN(d.distance));
+      .filter(d => !isNaN(d.distance));
 
-    distances.sort((a, b) => a.distance - b.distance);
-
-    const topK = distances.slice(0, k);
-    const freq: Record<string, number> = {};
-
-    topK.forEach((item) => {
-      freq[item.label] = (freq[item.label] || 0) + 1;
+    // Sort by distance
+    distances.sort((a, b) => {
+      if (a.distance === b.distance) {
+        // If distances are equal, use index as tiebreaker
+        return a.index - b.index;
+      }
+      return a.distance - b.distance;
     });
 
-    const prediction =
-      Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] || "Unknown";
-    data.onPredict(prediction);
+    // Get k nearest neighbors
+    const topK = distances.slice(0, k);
+    
+    // Weight votes by distance
+    const votes: { [key: string]: number } = {};
+    topK.forEach(neighbor => {
+      const weight = 1 / (neighbor.distance + Number.EPSILON);
+      votes[neighbor.label] = (votes[neighbor.label] || 0) + weight;
+    });
+
+    // Find the label with maximum weighted votes
+    const predictionResult = Object.entries(votes)
+      .reduce((max, [label, weight]) => 
+        weight > max.weight ? { label, weight } : max,
+        { label: "Unknown", weight: -Infinity }
+      ).label;
+
+    setPrediction(predictionResult);
+    data.onPredict(predictionResult);
   };
 
   return (
@@ -102,6 +130,16 @@ export const KNNModel: React.FC<NodeProps<KNNModelData>> = ({ data }) => {
             value={k}
             onChange={(e) => setK(parseInt(e.target.value))}
             min={1}
+          />
+        </div>
+
+        <div className="mb-4 visualization-container">
+          <KNNVisualization 
+            data={data.data}
+            featureKey={featureKey}
+            labelKey={labelKey}
+            k={k}
+            prediction={prediction}
           />
         </div>
 

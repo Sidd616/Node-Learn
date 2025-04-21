@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import NodeWrapper from "./NodeWrapper";
 import { NodeProps } from "reactflow";
+import { RegressionVisualization } from '../components/ModelVisualizations';
 
 interface RegressionModelData {
   data: any[];
@@ -14,6 +15,7 @@ export const RegressionModel: React.FC<NodeProps<RegressionModelData>> = ({
   const [xKey, setXKey] = useState("");
   const [yKey, setYKey] = useState("");
   const [inputX, setInputX] = useState("");
+  const [prediction, setPrediction] = useState<number | null>(null);
 
   useEffect(() => {
     if (data.data.length > 0) {
@@ -52,8 +54,9 @@ export const RegressionModel: React.FC<NodeProps<RegressionModelData>> = ({
     const xInput = parseFloat(inputX);
     if (isNaN(xInput)) return;
 
-    const prediction = slope * xInput + intercept;
-    data.onPredict(prediction); // Send the prediction result
+    const predictionResult = slope * xInput + intercept;
+    setPrediction(predictionResult);
+    data.onPredict(predictionResult); // Send the prediction result
   };
 
   return (
@@ -100,6 +103,15 @@ export const RegressionModel: React.FC<NodeProps<RegressionModelData>> = ({
             className="border p-2 rounded w-full"
             value={inputX}
             onChange={(e) => setInputX(e.target.value)}
+          />
+        </div>
+
+        <div className="mb-4">
+          <RegressionVisualization 
+            data={data.data} 
+            xKey={xKey} 
+            yKey={yKey} 
+            prediction={prediction} 
           />
         </div>
 

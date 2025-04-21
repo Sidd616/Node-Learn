@@ -12,6 +12,7 @@ import ReactFlow, {
 } from "reactflow";
 
 import "reactflow/dist/style.css";
+import './styles/visualizations.css';
 
 import { FileUploader } from "./pages/FileUploader";
 import { RegressionModel } from "./pages/RegressionModel";
