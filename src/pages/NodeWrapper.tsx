@@ -3,23 +3,37 @@ import { Handle, Position } from "reactflow";
 const NodeWrapper = ({
   title,
   children,
+  color = "#3B82F6",
 }: {
   title: string;
   children: React.ReactNode;
+  color?: string;
 }) => (
-  <div className="relative bg-white rounded shadow border p-2 w-[250px] ">
-    <Handle
-      type="target"
-      position={Position.Left}
-      className="w-2 h-2 bg-blue-500"
-    />
-    <Handle
-      type="source"
-      position={Position.Right}
-      className="w-2 h-2 bg-green-500"
-    />
-    <div className="font-bold text-sm mb-2">{title}</div>
+  <div
+    style={{
+      background: "#fff",
+      border: `2px solid ${color}`,
+      borderRadius: "12px",
+      padding: "12px",
+      minWidth: "200px",
+      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+    }}
+  >
+    <Handle type="target" position={Position.Left} style={{ background: color }} />
+    <div
+      style={{
+        fontSize: "14px",
+        fontWeight: "700",
+        marginBottom: "10px",
+        color: color,
+        borderBottom: `2px solid ${color}`,
+        paddingBottom: "6px",
+      }}
+    >
+      {title}
+    </div>
     {children}
+    <Handle type="source" position={Position.Right} style={{ background: color }} />
   </div>
 );
 

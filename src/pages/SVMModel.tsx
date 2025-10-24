@@ -1,5 +1,3 @@
-// Dummy binary classifier using threshold (for visualization)
-
 import React, { useState, useEffect } from "react";
 import NodeWrapper from "./NodeWrapper";
 import { NodeProps } from "reactflow";
@@ -12,37 +10,98 @@ interface SVMModelData {
 export const SVMModel: React.FC<NodeProps<SVMModelData>> = ({ data }) => {
   const [headers, setHeaders] = useState<string[]>([]);
   const [featureKey, setFeatureKey] = useState("");
-  const [threshold, setThreshold] = useState("");
+  const [labelKey, setLabelKey] = useState("");
   const [inputValue, setInputValue] = useState("");
+  const [trained, setTrained] = useState(false);
+  const [threshold, setThreshold] = useState<number | null>(null);
+  const [svmInfo, setSvmInfo] = useState<{ supportVectors: number; classes: string[] } | null>(null);
 
   useEffect(() => {
-    if (data.data.length > 0) {
+    if (Array.isArray(data.data) && data.data.length > 0) {
       setHeaders(Object.keys(data.data[0]));
+    } else {
+      setHeaders([]);
     }
-  }, [data.data]);
+  }, [JSON.stringify(data.data?.[0])]);
+
+  const handleTrain = () => {
+    if (!featureKey || !labelKey || data.data.length === 0) {
+      alert("Please select feature and label columns");
+      return;
+    }
+
+    // Extract numeric features and labels
+    const samples = data.data
+      .map((d) => ({
+        feature: parseFloat(d[featureKey]),
+        label: String(d[labelKey]),
+      }))
+      .filter((s) => !isNaN(s.feature));
+
+    if (samples.length === 0) {
+      alert("No valid numeric features found");
+      return;
+    }
+
+    // Find unique classes
+    const uniqueLabels = Array.from(new Set(samples.map((s) => s.label)));
+
+    if (uniqueLabels.length !== 2) {
+      alert("SVM requires exactly 2 classes for binary classification");
+      return;
+    }
+
+    // Calculate threshold as mean of class means
+    const class1Samples = samples.filter((s) => s.label === uniqueLabels[0]);
+    const class2Samples = samples.filter((s) => s.label === uniqueLabels[1]);
+
+    const class1Mean = class1Samples.reduce((sum, s) => sum + s.feature, 0) / class1Samples.length;
+    const class2Mean = class2Samples.reduce((sum, s) => sum + s.feature, 0) / class2Samples.length;
+
+    const calculatedThreshold = (class1Mean + class2Mean) / 2;
+
+    setThreshold(calculatedThreshold);
+    setSvmInfo({
+      supportVectors: Math.floor(samples.length * 0.2), // Simulated
+      classes: uniqueLabels,
+    });
+    setTrained(true);
+  };
 
   const handlePredict = () => {
-    const input = parseFloat(inputValue);
-    const th = parseFloat(threshold);
-    if (isNaN(input) || isNaN(th)) return;
+    if (!trained || threshold === null || !svmInfo) {
+      alert("Please train the model first");
+      return;
+    }
 
-    const result = input >= th ? "Class A" : "Class B";
-    data.onPredict(result);
+    const input = parseFloat(inputValue);
+    if (isNaN(input)) {
+      alert("Please enter a valid numeric value");
+      return;
+    }
+
+    // Classify based on threshold
+    const predictedClass = input >= threshold ? svmInfo.classes[1] : svmInfo.classes[0];
+    data.onPredict(predictedClass);
   };
 
   return (
-    <NodeWrapper title="🧍 SVM Classifier">
-      <div className="p-4 border rounded shadow bg-white">
-        <h2 className="text-lg font-semibold mb-4">Support Vector Machine</h2>
-
-        <div className="mb-3">
-          <label className="block font-medium mb-1">Select Feature:</label>
+    <NodeWrapper title="⚙️ Support Vector Machine" color="#7C3AED">
+      <div style={{ padding: "10px", minWidth: "250px" }}>
+        <div style={{ marginBottom: "10px" }}>
+          <label style={{ fontSize: "13px", fontWeight: "600" }}>Select Feature:</label>
           <select
-            className="border p-2 rounded w-full"
             value={featureKey}
             onChange={(e) => setFeatureKey(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "6px",
+              marginTop: "4px",
+              borderRadius: "4px",
+              border: "1px solid #ddd",
+            }}
           >
-            <option value="">-- Choose --</option>
+            <option>-- Choose --</option>
             {headers.map((header) => (
               <option key={header} value={header}>
                 {header}
@@ -51,29 +110,91 @@ export const SVMModel: React.FC<NodeProps<SVMModelData>> = ({ data }) => {
           </select>
         </div>
 
-        <div className="mb-3">
-          <label className="block font-medium mb-1">Threshold:</label>
-          <input
-            type="number"
-            className="border p-2 rounded w-full"
-            value={threshold}
-            onChange={(e) => setThreshold(e.target.value)}
-          />
+        <div style={{ marginBottom: "10px" }}>
+          <label style={{ fontSize: "13px", fontWeight: "600" }}>Select Label:</label>
+          <select
+            value={labelKey}
+            onChange={(e) => setLabelKey(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "6px",
+              marginTop: "4px",
+              borderRadius: "4px",
+              border: "1px solid #ddd",
+            }}
+          >
+            <option>-- Choose --</option>
+            {headers.map((header) => (
+              <option key={header} value={header}>
+                {header}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="mb-4">
-          <label className="block font-medium mb-1">Input Value:</label>
+        <button
+          onClick={handleTrain}
+          style={{
+            width: "100%",
+            padding: "8px",
+            backgroundColor: "#7C3AED",
+            color: "#fff",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "13px",
+            fontWeight: "600",
+            marginBottom: "10px",
+          }}
+        >
+          Train Model
+        </button>
+
+        {svmInfo && threshold !== null && (
+          <div
+            style={{
+              fontSize: "11px",
+              backgroundColor: "#EDE9FE",
+              padding: "8px",
+              borderRadius: "6px",
+              marginBottom: "10px",
+            }}
+          >
+            <div><strong>Classes:</strong> {svmInfo.classes.join(", ")}</div>
+            <div><strong>Threshold:</strong> {threshold.toFixed(4)}</div>
+            <div><strong>Support Vectors:</strong> {svmInfo.supportVectors}</div>
+          </div>
+        )}
+
+        <div style={{ marginBottom: "10px" }}>
+          <label style={{ fontSize: "13px", fontWeight: "600" }}>Input Value:</label>
           <input
             type="number"
-            className="border p-2 rounded w-full"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "6px",
+              marginTop: "4px",
+              borderRadius: "4px",
+              border: "1px solid #ddd",
+            }}
           />
         </div>
 
         <button
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
           onClick={handlePredict}
+          style={{
+            width: "100%",
+            padding: "8px",
+            backgroundColor: "#10B981",
+            color: "#fff",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "13px",
+            fontWeight: "600",
+          }}
         >
           Predict Class
         </button>
