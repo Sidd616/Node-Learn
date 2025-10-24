@@ -15,13 +15,15 @@ export const KMeansModel: React.FC<NodeProps<KMeansModelData>> = ({ data }) => {
   const [centroids, setCentroids] = useState<number[]>([]);
 
   useEffect(() => {
-    if (data.data.length > 0) {
-      setHeaders(Object.keys(data.data[0]));
+    if (!Array.isArray(data.data) || data.data.length === 0) {
+      setHeaders([]);
+      return;
     }
-  }, [data.data]);
+    setHeaders(Object.keys(data.data[0]));
+  }, [JSON.stringify(data.data?.[0])]); // ✅ Reacts to connection and CSV updates
 
   const runKMeans = (points: number[], k: number): number[] => {
-    let centroids = points.slice(0, k); // initial centroids
+    let centroids = points.slice(0, k);
     let assignments: number[] = [];
 
     for (let iter = 0; iter < 10; iter++) {
