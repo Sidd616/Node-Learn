@@ -11,12 +11,10 @@ import ReactFlow, {
   Connection,
   ReactFlowInstance,
 } from "reactflow";
-
 import "reactflow/dist/style.css";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Card } from "@heroui/card";
-
 import { FileUploader } from "./pages/FileUploader";
 import { RegressionModel } from "./pages/RegressionModel";
 import { DecisionTreeModel } from "./pages/DecisionTreeModel";
@@ -25,6 +23,9 @@ import { SVMModel } from "./pages/SVMModel";
 import { KNNModel } from "./pages/KNNModel";
 import { KMeansModel } from "./pages/KMeansModel";
 import { OutputCard } from "./pages/OutputCard";
+import { FeatureEncoderNode } from "./pages/FeatureEncoderNode";
+import { MissingValueHandlerNode } from "./pages/MissingValueHandlerNode";
+import { NormalizationNode } from "./pages/NormalizationNode";
 
 const nodeTypes = {
   fileUploader: FileUploader,
@@ -35,21 +36,44 @@ const nodeTypes = {
   knn: KNNModel,
   kmeans: KMeansModel,
   outputt: OutputCard,
+  featureEncoder: FeatureEncoderNode,
+  missingValueHandler: MissingValueHandlerNode,
+  normalization: NormalizationNode,
 };
 
-const availableNodes = [
-  { id: "fileUploader", label: "📁 File Uploader" },
-  { id: "regression", label: "📈 Regression Model" },
-  { id: "decisionTree", label: "🌳 Decision Tree" },
-  { id: "randomForest", label: "🌲 Random Forest" },
-  { id: "svm", label: "⚙️ SVM" },
-  { id: "knn", label: "🔍 KNN" },
-  { id: "kmeans", label: "📊 K-Means" },
-  { id: "outputt", label: "🧾 Output" },
+// Organized node library with sections
+const nodeCategories = [
+  {
+    category: "📂 Data Input",
+    nodes: [{ id: "fileUploader", label: "📁 File Uploader" }],
+  },
+  {
+    category: "🔧 Preprocessing",
+    nodes: [
+      { id: "missingValueHandler", label: "🔧 Missing Values" },
+      { id: "normalization", label: "📏 Normalization" },
+      { id: "featureEncoder", label: "🔢 Feature Encoder" },
+    ],
+  },
+  {
+    category: "🤖 Models",
+    nodes: [
+      { id: "regression", label: "📈 Regression" },
+      { id: "decisionTree", label: "🌳 Decision Tree" },
+      { id: "randomForest", label: "🌲 Random Forest" },
+      { id: "svm", label: "⚙️ SVM" },
+      { id: "knn", label: "🔍 KNN" },
+      { id: "kmeans", label: "📊 K-Means" },
+    ],
+  },
+  {
+    category: "📊 Output",
+    nodes: [{ id: "outputt", label: "🧾 Output" }],
+  },
 ];
 
 const App: React.FC = () => {
-  const [csvData, setCsvData] = useState<any[]>([]);
+  const [csvData, setCsvData] = useState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [nodes, setNodes, onNodesChange] = useNodesState([
     {
@@ -95,7 +119,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const connectedPairs = getConnectedPairs(edges);
-
     setNodes((nds) =>
       nds.map((node) => {
         const isModelNode = [
@@ -137,38 +160,74 @@ const App: React.FC = () => {
     );
   }, [edges, setNodes]);
 
+  // ============= PREPROCESSING NODE DATA PROPAGATION (FIXED) ======================
   useEffect(() => {
-    const connectedNodeIds = edges
-      .filter((edge) => edge.source === "1")
-      .map((edge) => edge.target);
+    // Get data for a specific node - this is the KEY FIX
+    const getDataForNode = (nodeId: string): any[] => {
+      const incomingEdges = edges.filter((e) => e.target === nodeId);
+
+      for (const edge of incomingEdges) {
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+
+        if (!sourceNode) continue;
+
+        // If source is file uploader, return CSV data
+        if (sourceNode.type === "fileUploader") {
+          return csvData;
+        }
+
+        // If source is a preprocessing node
+        if (["featureEncoder", "missingValueHandler", "normalization"].includes(sourceNode.type ?? "")) {
+          // Return processed data if available, otherwise return raw incoming data
+          if (sourceNode.data.processedData && sourceNode.data.processedData.length > 0) {
+            return sourceNode.data.processedData;
+          } else if (sourceNode.data.data && sourceNode.data.data.length > 0) {
+            return sourceNode.data.data;
+          }
+        }
+      }
+
+      return [];
+    };
 
     setNodes((nds) =>
       nds.map((node) => {
-        const isModelNode = [
-          "regression",
-          "decisionTree",
-          "randomForest",
-          "svm",
-          "knn",
-          "kmeans",
-        ].includes(node.type ?? "");
-        const isConnectedToFileUploader = connectedNodeIds.includes(node.id);
+        const isPreprocessingNode = ["featureEncoder", "missingValueHandler", "normalization"].includes(node.type ?? "");
+        const isModelNode = ["regression", "decisionTree", "randomForest", "svm", "knn", "kmeans"].includes(node.type ?? "");
 
-        if (isModelNode && isConnectedToFileUploader) {
-          const existingPredictHandler = node.data.onPredict;
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              data: csvData,
-              onPredict: existingPredictHandler,
-            },
-          };
+        if (isPreprocessingNode || isModelNode) {
+          const incomingData = getDataForNode(node.id);
+
+          // Always update if there's incoming data
+          if (incomingData.length > 0) {
+            const existingPredictHandler = node.data.onPredict;
+            const existingProcessHandler = node.data.onDataProcessed;
+
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                data: incomingData,
+                onPredict: existingPredictHandler,
+                onDataProcessed: existingProcessHandler || ((processedData: any[]) => {
+                  // Store processed data in this node
+                  setNodes((currentNodes) =>
+                    currentNodes.map((n) =>
+                      n.id === node.id
+                        ? { ...n, data: { ...n.data, processedData } }
+                        : n
+                    )
+                  );
+                }),
+              },
+            };
+          }
         }
+
         return node;
       })
     );
-  }, [csvData, edges, setNodes]);
+  }, [csvData, edges, nodes, setNodes]);
 
   // Reset disconnected output nodes
   useEffect(() => {
@@ -256,11 +315,16 @@ const App: React.FC = () => {
       });
 
       let data: any = {};
-
       if (type === "fileUploader") {
         data = { onFileUpload: setCsvData };
       } else if (type === "outputt") {
         data = { result: null };
+      } else if (["featureEncoder", "missingValueHandler", "normalization"].includes(type)) {
+        data = { 
+          data: [], 
+          processedData: [],
+          onDataProcessed: () => {} 
+        };
       } else {
         data = { data: [], onPredict: () => {} };
       }
@@ -284,43 +348,104 @@ const App: React.FC = () => {
     [rfInstance, nextNodeId, setNodes]
   );
 
-  // ============= SIDEBAR (from Navbar styling) ======================
+  // ============= SIDEBAR ======================
   const handleDragStart = (event: React.DragEvent, nodeType: string) => {
     event.dataTransfer.setData("application/reactflow", nodeType);
     event.dataTransfer.effectAllowed = "move";
   };
 
   return (
-    <div className="w-screen h-screen relative">
-      <ReactFlowProvider>
+    <ReactFlowProvider>
+      <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
         {/* ===== SIDEBAR ===== */}
+        <motion.div
+          initial={{ x: open ? 0 : -300 }}
+          animate={{ x: open ? 0 : -300 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "280px",
+            height: "100vh",
+            backgroundColor: "#1F2937",
+            color: "#fff",
+            zIndex: 40,
+            overflowY: "auto",
+            padding: "20px",
+            boxShadow: "2px 0 10px rgba(0,0,0,0.3)",
+          }}
+        >
+          <h2 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "20px" }}>
+            🧩 Node Library
+          </h2>
+
+          {nodeCategories.map((category) => (
+            <div key={category.category} style={{ marginBottom: "24px" }}>
+              <h3
+                style={{
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  marginBottom: "10px",
+                  color: "#9CA3AF",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {category.category}
+              </h3>
+              {category.nodes.map((node) => (
+                <div
+                  key={node.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, node.id)}
+                  style={{
+                    cursor: "grab",
+                    backgroundColor: "#374151",
+                    color: "#fff",
+                    padding: "12px",
+                    marginBottom: "8px",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    fontWeight: "500",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#4B5563";
+                    e.currentTarget.style.transform = "translateX(4px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#374151";
+                    e.currentTarget.style.transform = "translateX(0)";
+                  }}
+                >
+                  {node.label}
+                </div>
+              ))}
+            </div>
+          ))}
+        </motion.div>
+
+        {/* ===== TOGGLE BUTTON ===== */}
         <button
           onClick={() => setOpen(!open)}
-          className="fixed top-4 left-4 z-50 p-2 bg-gray-800 text-white rounded-lg shadow-md"
+          style={{
+            position: "fixed",
+            top: "20px",
+            left: open ? "300px" : "20px",
+            zIndex: 50,
+            padding: "10px",
+            backgroundColor: "#1F2937",
+            color: "#fff",
+            borderRadius: "8px",
+            border: "none",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            transition: "left 0.3s",
+          }}
         >
-          {open ? <X /> : <Menu />}
+          {open ? <X size={20} /> : <Menu size={20} />}
         </button>
-
-        <motion.div
-          initial={{ x: -250 }}
-          animate={{ x: open ? 0 : -250 }}
-          transition={{ type: "spring", stiffness: 80 }}
-          className="fixed top-0 left-0 h-full w-64 bg-gray-900 text-white p-4 z-40 shadow-xl overflow-y-auto"
-        >
-          <h2 className="text-xl font-semibold mb-4 text-center">Node Library</h2>
-          <div className="flex flex-col gap-3">
-            {availableNodes.map((node) => (
-              <Card
-                key={node.id}
-                draggable
-                onDragStart={(e: any) => handleDragStart(e, node.id)}
-                className="cursor-grab bg-gray-800 text-white hover:bg-gray-700 transition-all p-3 rounded-xl shadow-sm"
-              >
-                {node.label}
-              </Card>
-            ))}
-          </div>
-        </motion.div>
 
         {/* ===== MAIN REACT FLOW CANVAS ===== */}
         <ReactFlow
@@ -328,30 +453,41 @@ const App: React.FC = () => {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onEdgeClick={onEdgeClick}
           onConnect={onConnect}
-          nodeTypes={nodeTypes}
           onInit={setRfInstance}
           onDrop={onDrop}
           onDragOver={onDragOver}
+          nodeTypes={nodeTypes}
           onNodeContextMenu={handleNodeContextMenu}
+          onEdgeClick={onEdgeClick}
           fitView
         >
           <Background />
           <Controls />
-
-          {contextMenu.visible && (
-            <div
-              className="absolute z-50 bg-white shadow-md border rounded p-2 text-sm cursor-pointer"
-              style={{ top: contextMenu.y, left: contextMenu.x }}
-              onClick={deleteNode}
-            >
-              🗑 Delete Node
-            </div>
-          )}
         </ReactFlow>
-      </ReactFlowProvider>
-    </div>
+
+        {/* ===== CONTEXT MENU ===== */}
+        {contextMenu.visible && (
+          <div
+            style={{
+              position: "absolute",
+              top: contextMenu.y,
+              left: contextMenu.x,
+              backgroundColor: "#fff",
+              border: "1px solid #ddd",
+              borderRadius: "8px",
+              padding: "8px 12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              zIndex: 1000,
+              cursor: "pointer",
+            }}
+            onClick={deleteNode}
+          >
+            🗑 Delete Node
+          </div>
+        )}
+      </div>
+    </ReactFlowProvider>
   );
 };
 
